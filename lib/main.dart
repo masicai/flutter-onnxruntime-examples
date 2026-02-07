@@ -44,6 +44,8 @@ class _OnnxModelDemoPageState extends State<OnnxModelDemoPage> {
   String? _selectedProvider;
   // Cache for decoded image to avoid decoding it multiple times
   img.Image? _cachedImage;
+  // Cache model size to avoid loading the entire model file every inference
+  int? _modelSizeBytes;
 
   @override
   void initState() {
@@ -121,9 +123,6 @@ class _OnnxModelDemoPageState extends State<OnnxModelDemoPage> {
     final sessionOptions = OrtSessionOptions(providers: [provider]);
 
     _session ??= await OnnxRuntime().createSessionFromAsset(assetPath, options: sessionOptions);
-
-    // read image data and run inference
-    _session ??= await OnnxRuntime().createSessionFromAsset(assetPath);
 
     // Use the cached image or load it if not available
     if (_cachedImage == null) {
@@ -209,9 +208,12 @@ class _OnnxModelDemoPageState extends State<OnnxModelDemoPage> {
     // Calculate inference time
     final inferenceTime = endTime.difference(startTime).inMilliseconds;
 
-    // Get the model file size
-    final asset = await rootBundle.load(assetPath);
-    final modelSizeInMB = (asset.lengthInBytes / (1024 * 1024)).toStringAsFixed(1);
+    // Get the model file size (cached to avoid loading the entire file every time)
+    if (_modelSizeBytes == null) {
+      final asset = await rootBundle.load(assetPath);
+      _modelSizeBytes = asset.lengthInBytes;
+    }
+    final modelSizeInMB = (_modelSizeBytes! / (1024 * 1024)).toStringAsFixed(1);
 
     // Clean up resources
     await inputTensor.dispose();
